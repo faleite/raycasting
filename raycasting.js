@@ -4,6 +4,13 @@ let data = {
 		width: 640,
 		height: 480,
 		halfWidth: null,
+		halfHeight: null,
+		scale: 1
+	},
+	projection: {
+		width: null,
+		height: null,
+		halfWidth: null,
 		halfHeight: null
 	},
 	render: {
@@ -19,6 +26,7 @@ let data = {
 		x: 2,
 		y: 2,
 		angle: 90,
+		radius: 10, // para detectar colisões 
 		// moves
 		speed: {
 			moviment: 0.5,
@@ -50,16 +58,24 @@ data.screen.halfWidth = data.screen.width /2;
 data.screen.halfHeight = data.screen.height /2;
 data.rayCasting.incrementAngle = data.player.fov / data.screen.width;
 data.player.halfov = data.player.fov / 2;
+// projection
+data.projection.width = data.screen.width / data.screen.scale;
+data.projection.height = data.screen.height / data.screen.scale;
+data.projection.halfWidth = data.projection.width / 2;
+data.projection.halfHeight = data.projection.height / 2;
+data.rayCasting.incrementAngle = data.player.fov / data.projection.width;
 
 // Creating screen (canvas)
 const screen = document.createElement('canvas');
 screen.width = data.screen.width;
 screen.height = data.screen.height;
-screen.style.border = '2px solid black';
+screen.style.border = '1px solid black';
 document.body.appendChild(screen);
 
 // Canvas context
 const screenContext = screen.getContext('2d');
+screenContext.scale(data.screen.scale, data.screen.scale);
+screenContext.translate(0.5, 0.5);
 
 // Estamos usando valores de graus nos atributos, portanto, precisamos
 // criar uma função que converta valores de graus em valores de radianos.
@@ -125,7 +141,7 @@ function rayCasting() {
 	 * incrementada para iterar todo o FOV do jogador. 
 	 * Usaremos o data.rayCasting.incrementAngle para fazer isso.
 	 */
-	for (let rayCount = 0; rayCount < data.screen.width; rayCount++) {
+	for (let rayCount = 0; rayCount < data.projection.width; rayCount++) {
 /**
  * Ray data
  * As primeiras coordenadas do raio são as mesmas das coordenadas do jogador.
@@ -210,7 +226,7 @@ function rayCasting() {
  * As coordenadas da tela são representadas com um tipo inteiro para o nosso 
  * caso, portanto, precisamos converter o valor com Math.floor().
  */
-	let wallHeight = Math.floor(data.screen.halfHeight / distance);
+	let wallHeight = Math.floor(data.projection.halfHeight / distance);
 
 /**
  * Draw
@@ -221,9 +237,9 @@ function rayCasting() {
  * Desenhe a parede (da meia altura da tela menos a altura da parede até a meia altura da tela mais a altura da parede)
  * Desenhe o chão (da meia altura da tela mais a altura da parede até a parte inferior da tela)
  */
-	drawLine(rayCount, 0, rayCount, data.screen.halfHeight - wallHeight, "darkslateblue");
-	drawLine(rayCount, data.screen.halfHeight - wallHeight, rayCount, data.screen.halfHeight + wallHeight, "darkred");
-	drawLine(rayCount, data.screen.halfHeight + wallHeight, rayCount, data.screen.height, "gray");
+	drawLine(rayCount, 0, rayCount, data.projection.halfHeight - wallHeight, "darkslateblue");
+	drawLine(rayCount, data.projection.halfHeight - wallHeight, rayCount, data.projection.halfHeight + wallHeight, "darkred");
+	drawLine(rayCount, data.projection.halfHeight + wallHeight, rayCount, data.projection.height, "gray");
 
 		// Increment
 		rayAngle += data.rayCasting.incrementAngle;
@@ -234,11 +250,21 @@ function rayCasting() {
  * Clear screen
  */
 function clearScreen() {
-	screenContext.clearRect(0, 0, data.screen.width, data.screen.height);
+	screenContext.clearRect(0, 0, data.projection.width, data.projection.height);
 }
 
 /**
  * Moviment Event
+ * W(up)	Obtenha o sin e cos do ângulo do jogador para incrementar as coordenadas do jogador
+ * S(down)	Obtenha o sin e cos do ângulo do jogador para diminuir as coordenadas do jogador
+ * A(left)	Diminuir o ângulo do jogador
+ * D(right) Aumente o ângulo do jogador
+ * 
+ * Nota: Para direções para cima e para baixo, precisamos obter os valores 
+ * sin e cos do ângulo do jogador para descobrir qual é o valor que precisamos 
+ * aumentar/diminuir para as coordenadas do jogador. Se apenas incrementarmos 
+ * as coordenadas sem verificar o ângulo, o jogador não irá para a posição de 
+ * visualização em relação ao ângulo, indo sempre na mesma direção.
  */
 document.addEventListener('keydown', (event) => {
 	let keyCode = event.code;
@@ -248,11 +274,16 @@ document.addEventListener('keydown', (event) => {
 		let playerSin = Math.sin(degreeToRadian(data.player.angle)) * data.player.speed.moviment;
 		let newX = data.player.x += playerCos;
 		let newY = data.player.y += playerSin;
+		// Melhoria na detecção de colisão
+		let checkX = Math.floor(newX + playerCos * data.player.radius);
+		let checkY = Math.floor(newY + playerSin * data.player.radius);
 
-		// Collision test
-		if(data.map[Math.floor(newY)][Math.floor(newX)] == 0) {
-			data.player.x = newX;
+		// Collision test (this not DDA algorithm, is simple test)
+		if(data.map[checkY][Math.floor(data.player.x)] == 0) {
 			data.player.y = newY;
+		}
+		if(data.map[Math.floor(data.player.y)][checkX] == 0) {
+			data.player.x = newX;
 		}
 
 	} else if(keyCode == data.key.down) {
@@ -260,16 +291,26 @@ document.addEventListener('keydown', (event) => {
 		let playerSin = Math.sin(degreeToRadian(data.player.angle)) * data.player.speed.moviment;
 		let newX = data.player.x -= playerCos;
 		let newY = data.player.y -= playerSin;
+		// Melhoria na detecção de colisão
+		let checkX = Math.floor(newX - playerCos * data.player.radius);
+		let checkY = Math.floor(newY - playerSin * data.player.radius);
 
-		// Collision test
-		if(data.map[Math.floor(newY)][Math.floor(newX)] == 0) {
-			data.player.x = newX;
+		// Collision test (this not DDA algorithm, is simple test)
+		if(data.map[checkY][Math.floor(data.player.x)] == 0) {
 			data.player.y = newY;
 		}
-
+		if(data.map[Math.floor(data.player.y)][checkX] == 0) {
+			data.player.x = newX;
+		}
+/**
+ * Para o movimento para a esquerda e para a direita, simplesmente aumentamos 
+ * ou diminuímos o ângulo do jogador com a velocidade de rotação do jogador.
+ */
 	} else if(keyCode == data.key.left) {
 		data.player.angle -= data.player.speed.rotation;
+		data.player.angle %= 360;
 	} else if(keyCode == data.key.right) {
 		data.player.angle += data.player.speed.rotation;
+		data.player.angle %= 360;
 	}
 });
