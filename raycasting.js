@@ -131,7 +131,7 @@ function main() {
  * 120º outro. Confira a imagem abaixo para ver a representação do FOV do jogador.
  */
 function rayCasting() {
-	// Dentro da nossa rayCasting()função, podemos obter 
+	// Dentro da nossa rayCasting() função, podemos obter 
 	// o ângulo real do raio com este código:
 	let rayAngle = data.player.angle - data.player.halfov;
 	/**
@@ -175,8 +175,8 @@ function rayCasting() {
 /**
  * Wall checking
  * O próximo passo é a verificação da parede. Temos que incrementar as 
- * coordenadas rayCose raySinpara xe ydo raio até encontrar uma parede no mapa.
- * Então, nesta etapa precisamos de um loop.
+ * coordenadas rayCos e raySin para x e y do raio até encontrar uma parede
+ * no mapa. Então, nesta etapa precisamos de um loop.
 
  * Nota: Lembre-se de que as posições da matriz são representadas em regiões 
  * inteiras. As posições dos raios incrementados cos serão sin valores 
